@@ -3,19 +3,44 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ExternalLink } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
+
+type Grant = {
+  name: string;
+  description: string;
+  eligibilityRequirements: string[];
+  applicationProcessSteps: string[];
+  deadlines: string[];
+  fundingAmount: string;
+  contactInformation: string;
+  applicationUrl: string;
+  relevanceScore: number;
+  keyTakeaways: string[];
+};
+
+type StructuredReport = {
+  executiveSummary: string;
+  grantOpportunities: Grant[];
+  eligibilityAnalysis: string;
+  nextSteps: {
+    step: string;
+    priority: 'High' | 'Medium' | 'Low';
+    explanation: string;
+  }[];
+  sources: string[];
+};
 
 export default function GrantsPage() {
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [progress, setProgress] = useState<string>("");
-  const [report, setReport] = useState<string | null>(null);
+  const [report, setReport] = useState<StructuredReport | null>(null);
   const [queryData, setQueryData] = useState<{
     query: string;
     farmType?: string;
@@ -162,8 +187,148 @@ export default function GrantsPage() {
           </CardContent>
         </Card>
       ) : report ? (
-        <div className="prose prose-sm md:prose-base lg:prose-lg dark:prose-invert max-w-none">
-          <ReactMarkdown>{report}</ReactMarkdown>
+        <div className="space-y-8">
+          {/* Executive Summary Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Executive Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>{report.executiveSummary}</ReactMarkdown>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Grants Section */}
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Available Grants</h2>
+            <div className="grid gap-6 md:grid-cols-2">
+              {report.grantOpportunities.map((grant, index) => (
+                <Card key={index} className="h-full flex flex-col">
+                  <CardHeader>
+                    <CardTitle>{grant.name}</CardTitle>
+                    <CardDescription>
+                      {grant.fundingAmount !== "Not specified" ? `Funding: ${grant.fundingAmount}` : ""}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-grow">
+                    <p className="mb-4">{grant.description}</p>
+                    
+                    {grant.eligibilityRequirements.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="font-semibold mb-1">Eligibility Requirements:</h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {grant.eligibilityRequirements.map((req, i) => (
+                            <li key={i}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {grant.deadlines.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="font-semibold mb-1">Deadlines:</h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {grant.deadlines.map((deadline, i) => (
+                            <li key={i}>{deadline}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {grant.contactInformation !== "Not specified" && (
+                      <div className="mb-4">
+                        <h4 className="font-semibold mb-1">Contact:</h4>
+                        <p>{grant.contactInformation}</p>
+                      </div>
+                    )}
+                    
+                    {grant.keyTakeaways.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="font-semibold mb-1">Key Takeaways:</h4>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {grant.keyTakeaways.map((takeaway, i) => (
+                            <li key={i}>{takeaway}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                  <CardFooter className="flex justify-between items-center border-t pt-4">
+                    <div>
+                      <h4 className="font-semibold text-sm">{grant.applicationProcessSteps.length} application steps</h4>
+                    </div>
+                    <Button asChild>
+                      <a href={grant.applicationUrl} target="_blank" rel="noopener noreferrer">
+                        Apply <ExternalLink className="ml-2 h-4 w-4" />
+                      </a>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
+          </div>
+          
+          {/* Eligibility Analysis */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Eligibility Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>{report.eligibilityAnalysis}</ReactMarkdown>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Next Steps */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Next Steps & Recommendations</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {report.nextSteps.map((step, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-white ${
+                      step.priority === 'High' ? 'bg-red-500' : 
+                      step.priority === 'Medium' ? 'bg-amber-500' : 'bg-blue-500'
+                    }`}>
+                      {index + 1}
+                    </span>
+                    <div>
+                      <p className="font-medium">{step.step}</p>
+                      <p className="text-sm text-muted-foreground">{step.explanation}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Sources */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Sources</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-disc pl-5 space-y-1">
+                {report.sources.map((source, index) => (
+                  <li key={index}>
+                    <a 
+                      href={source}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:underline"
+                    >
+                      {source}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         </div>
       ) : (
         <Card>

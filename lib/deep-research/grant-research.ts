@@ -10,7 +10,7 @@ type GrantInfo = {
   name: string;
   description: string;
   eligibilityRequirements: string[];
-  applicationProcess: string[];
+  applicationProcessSteps: string[];
   deadlines: string[];
   fundingAmount: string;
   contactInformation: string;
@@ -173,7 +173,7 @@ async function processGrantResults({
         name: z.string().describe('Name of the grant or funding program'),
         description: z.string().describe('Brief description of the grant'),
         eligibilityRequirements: z.array(z.string()).describe('List of eligibility requirements'),
-        applicationProcess: z.array(z.string()).describe('Steps in the application process'),
+        applicationProcessSteps: z.array(z.string()).describe('Steps in the application process'),
         deadlines: z.array(z.string()).describe('Important deadlines for the grant'),
         fundingAmount: z.string().describe('Amount or range of funding available'),
         contactInformation: z.string().describe('Contact information for questions'),
@@ -213,7 +213,7 @@ export async function generateGrantTemplate({
     Name: ${grantInfo.name}
     Description: ${grantInfo.description}
     Eligibility Requirements: ${grantInfo.eligibilityRequirements.join('\n')}
-    Application Process: ${grantInfo.applicationProcess.join('\n')}
+    Application Process: ${grantInfo.applicationProcessSteps.join('\n')}
     Deadlines: ${grantInfo.deadlines.join('\n')}
     Funding Amount: ${grantInfo.fundingAmount}
     </grant_information>
@@ -245,7 +245,7 @@ export async function researchAgricultureGrants({
   query,
   farmType,
   location,
-  numQueries = 5,
+  numQueries = 2,
   onProgress,
   model,
   firecrawlKey,
@@ -286,7 +286,7 @@ export async function researchAgricultureGrants({
 
       const searchResults = await firecrawl.search(serpQuery, {
         timeout: 15000,
-        limit: 5,
+        limit: 2,
         scrapeOptions: { formats: ['markdown'] },
       });
 
@@ -324,7 +324,7 @@ export async function researchAgricultureGrants({
   };
 }
 
-// Generate a final report with all found grants and application templates
+// Generate a final report with all found grants
 export async function writeGrantReport({
   query,
   farmType,
@@ -355,7 +355,7 @@ ${grant.description}
 ${grant.eligibilityRequirements.map(req => `- ${req}`).join('\n')}
 
 **Application Process:**
-${grant.applicationProcess.map((step, i) => `${i + 1}. ${step}`).join('\n')}
+${grant.applicationProcessSteps.map((step, i) => `${i + 1}. ${step}`).join('\n')}
 
 **Deadlines:**
 ${grant.deadlines.map(deadline => `- ${deadline}`).join('\n')}
@@ -365,38 +365,6 @@ ${grant.deadlines.map(deadline => `- ${deadline}`).join('\n')}
 **Contact Information:** ${grant.contactInformation}
 
 **Application URL:** [Apply Here](${grant.applicationUrl})
-
----`
-    )
-    .join('\n');
-
-  // Generate application templates for each grant
-  const templates = await Promise.all(
-    grants.slice(0, 3).map(async grant => {
-      const template = await generateGrantTemplate({
-        grantInfo: grant,
-        farmDetails,
-        model,
-      });
-      
-      return {
-        grantName: grant.name,
-        template: template.applicationTemplate,
-        tips: template.additionalTips,
-      };
-    })
-  );
-
-  const templatesString = templates
-    .map(
-      template => `
-# Application Template for ${template.grantName}
-
-${template.template}
-
-## Application Tips
-
-${template.tips.map(tip => `- ${tip}`).join('\n')}
 
 ---`
     )
@@ -415,27 +383,31 @@ ${template.tips.map(tip => `- ${tip}`).join('\n')}
     ${grantsString}
     </grants_found>
     
-    <application_templates>
-    ${templatesString}
-    </application_templates>
-    
-    Create a well-structured report that includes:
-    1. An executive summary of available grants
-    2. Detailed information about each grant
-    3. Eligibility analysis (which grants the farm/ranch likely qualifies for)
-    4. Next steps and recommendations
-    5. Application templates
-    
-    Format the report in proper Markdown with clear headings, lists, and sections.`,
+    Analyze the farm details and available grants to create a structured report.`,
     schema: z.object({
-      reportMarkdown: z.string().describe('Final grant research report in Markdown'),
+      executiveSummary: z.string().describe('A concise summary of the available grants and their relevance to the farm/ranch'),
+      grantOpportunities: z.array(z.object({
+        name: z.string().describe('Name of the grant or funding program'),
+        description: z.string().describe('Brief description of the grant'),
+        eligibilityRequirements: z.array(z.string()).describe('List of eligibility requirements as bullet points'),
+        applicationProcessSteps: z.array(z.string()).describe('Numbered steps in the application process'),
+        deadlines: z.array(z.string()).describe('Important deadlines as bullet points'),
+        fundingAmount: z.string().describe('Amount or range of funding available'),
+        contactInformation: z.string().describe('Contact information for questions'),
+        applicationUrl: z.string().describe('Direct URL where users can apply for the grant'),
+        relevanceScore: z.number().describe('How relevant this grant is to the farm/ranch (1-10)'),
+        keyTakeaways: z.array(z.string()).describe('Key points the farmer should know about this grant')
+      })).describe('Detailed information about each grant opportunity'),
+      eligibilityAnalysis: z.string().describe('Analysis of which grants the farm/ranch likely qualifies for and why'),
+      nextSteps: z.array(z.object({
+        step: z.string().describe('Recommended action'),
+        priority: z.enum(['High', 'Medium', 'Low']).describe('Priority level of this step'),
+        explanation: z.string().describe('Why this step is important')
+      })).describe('Recommended next steps for the farm/ranch owner'),
+      sources: z.array(z.string()).describe('Sources of information used in the research')
     }),
   });
 
-  // Append the visited URLs as a markdown formatted Sources section
-  const urlsSection = `\n\n## Sources\n\n${visitedUrls
-    .map(url => `- ${url}`)
-    .join('\n')}`;
-
-  return `# Agricultural Grant Opportunities Report\n\n${res.object.reportMarkdown}${urlsSection}`;
+  // Return the structured data
+  return res.object;
 } 
