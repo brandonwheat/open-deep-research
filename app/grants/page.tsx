@@ -3,17 +3,24 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ExternalLink } from "lucide-react";
+import { ChevronLeft, ExternalLink, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 
+type EligibilityRequirement = {
+  requirement: string;
+  isMet: 'YES' | 'NO' | 'MAYBE';
+  explanation: string;
+};
+
 type Grant = {
   name: string;
   description: string;
-  eligibilityRequirements: string[];
+  eligibilityRequirements: EligibilityRequirement[];
+  eligibilityCount: number;
   applicationProcessSteps: string[];
   deadlines: string[];
   fundingAmount: string;
@@ -41,6 +48,7 @@ export default function GrantsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [progress, setProgress] = useState<string>("");
   const [report, setReport] = useState<StructuredReport | null>(null);
+  const [sortedGrants, setSortedGrants] = useState<Grant[]>([]);
   const [queryData, setQueryData] = useState<{
     query: string;
     farmType?: string;
@@ -62,6 +70,22 @@ export default function GrantsPage() {
     // Run the grant research
     runGrantResearch(parsedQuery);
   }, [router]);
+
+  useEffect(() => {
+    if (report && report.grantOpportunities) {
+      // Sort the grants by eligibility count first, then by relevance score
+      const sorted = [...report.grantOpportunities].sort((a, b) => {
+        // First compare by eligibility count (descending)
+        if (a.eligibilityCount !== b.eligibilityCount) {
+          return b.eligibilityCount - a.eligibilityCount;
+        }
+        // Then by relevance score (descending)
+        return b.relevanceScore - a.relevanceScore;
+      });
+      
+      setSortedGrants(sorted);
+    }
+  }, [report]);
 
   const runGrantResearch = async (queryData: any) => {
     setIsLoading(true);
@@ -137,6 +161,17 @@ export default function GrantsPage() {
     }
   };
 
+  const getEligibilityIcon = (status: 'YES' | 'NO' | 'MAYBE') => {
+    switch (status) {
+      case 'YES':
+        return <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />;
+      case 'NO':
+        return <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />;
+      case 'MAYBE':
+        return <HelpCircle className="h-5 w-5 text-amber-500 flex-shrink-0" />;
+    }
+  };
+
   return (
     <div className="container py-8">
       <div className="mb-6">
@@ -204,23 +239,42 @@ export default function GrantsPage() {
           <div>
             <h2 className="text-2xl font-bold mb-4">Available Grants</h2>
             <div className="grid gap-6 md:grid-cols-2">
-              {report.grantOpportunities.map((grant, index) => (
+              {sortedGrants.map((grant, index) => (
                 <Card key={index} className="h-full flex flex-col">
                   <CardHeader>
-                    <CardTitle>{grant.name}</CardTitle>
-                    <CardDescription>
-                      {grant.fundingAmount !== "Not specified" ? `Funding: ${grant.fundingAmount}` : ""}
-                    </CardDescription>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle>{grant.name}</CardTitle>
+                        <CardDescription>
+                          Funding: {grant.fundingAmount !== "Not specified" ? grant.fundingAmount : "Not specified"}
+                        </CardDescription>
+                      </div>
+                      <div className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded dark:bg-blue-200 dark:text-blue-800 flex items-center">
+                        <span className="mr-1">Score:</span>
+                        <span className="text-lg">{grant.relevanceScore}/10</span>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex items-center">
+                      <div className="bg-green-100 text-green-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded dark:bg-green-200 dark:text-green-900">
+                        {grant.eligibilityCount} of {grant.eligibilityRequirements.length} requirements met
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent className="flex-grow">
                     <p className="mb-4">{grant.description}</p>
                     
                     {grant.eligibilityRequirements.length > 0 && (
                       <div className="mb-4">
-                        <h4 className="font-semibold mb-1">Eligibility Requirements:</h4>
-                        <ul className="list-disc pl-5 space-y-1">
+                        <h4 className="font-semibold mb-2">Eligibility Requirements:</h4>
+                        <ul className="space-y-2">
                           {grant.eligibilityRequirements.map((req, i) => (
-                            <li key={i}>{req}</li>
+                            <li key={i} className="flex items-start gap-2 p-2 rounded bg-gray-50 dark:bg-gray-800">
+                              {getEligibilityIcon(req.isMet)}
+                              <div>
+                                <p className="font-medium">{req.requirement}</p>
+                                <p className="text-xs text-muted-foreground">{req.explanation}</p>
+                              </div>
+                            </li>
                           ))}
                         </ul>
                       </div>

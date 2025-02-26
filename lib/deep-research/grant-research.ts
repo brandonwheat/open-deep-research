@@ -383,16 +383,21 @@ ${grant.deadlines.map(deadline => `- ${deadline}`).join('\n')}
     ${grantsString}
     </grants_found>
     
-    Analyze the farm details and available grants to create a structured report.`,
+    Analyze the farm details and available grants to create a structured report. For each eligibility requirement, assess whether the farm/ranch likely meets it based on the provided details.`,
     schema: z.object({
       executiveSummary: z.string().describe('A concise summary of the available grants and their relevance to the farm/ranch'),
       grantOpportunities: z.array(z.object({
         name: z.string().describe('Name of the grant or funding program'),
         description: z.string().describe('Brief description of the grant'),
-        eligibilityRequirements: z.array(z.string()).describe('List of eligibility requirements as bullet points'),
+        fundingAmount: z.string().describe('Amount or range of funding available'),
+        eligibilityRequirements: z.array(z.object({
+          requirement: z.string().describe('The eligibility requirement text'),
+          isMet: z.enum(['YES', 'NO', 'MAYBE']).describe('Whether the farm/ranch meets this requirement based on available information'),
+          explanation: z.string().describe('Brief explanation for the assessment')
+        })).describe('List of eligibility requirements with assessment'),
+        eligibilityCount: z.number().describe('Number of eligibility requirements that are met (YES)'),
         applicationProcessSteps: z.array(z.string()).describe('Numbered steps in the application process'),
         deadlines: z.array(z.string()).describe('Important deadlines as bullet points'),
-        fundingAmount: z.string().describe('Amount or range of funding available'),
         contactInformation: z.string().describe('Contact information for questions'),
         applicationUrl: z.string().describe('Direct URL where users can apply for the grant'),
         relevanceScore: z.number().describe('How relevant this grant is to the farm/ranch (1-10)'),

@@ -8,15 +8,16 @@ export function Header() {
         <div className="container flex h-[3.5rem] items-center justify-center">
           <Link
             className="flex items-center text-md text-black"
-            href="https://anotherwrapper.com"
+            href="https://rootedag.com"
             target="_blank"
           >
             <Image
               src="/logo-text.png"
-              alt="Anotherwrapper Logo"
-              width={400}
-              height={100}
-              className="w-48"
+              alt="Rooted Agriculture Logo"
+              width={128}
+              height={32}
+              className="w-32"
+              style={{ objectFit: 'contain' }}
             />
           </Link>
         </div>
